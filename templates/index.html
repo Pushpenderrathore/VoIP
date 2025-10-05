@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Location Request</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input[type="text"],
+        input[type="tel"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .alert.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .alert.warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        
+        .requests-list {
+            margin-top: 20px;
+        }
+        
+        .request-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .request-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .phone-number {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.sent {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status.received {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .request-time {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .view-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .view-link:hover {
+            text-decoration: underline;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📍 SMS Location Request</h1>
+            <p class="subtitle">Send a location request via SMS to any phone number</p>
+            
+            <div id="alertBox" class="alert"></div>
+            
+            <form id="locationForm">
+                <div class="form-group">
+                    <label for="phone_number">Phone Number (with country code)</label>
+                    <input type="tel" id="phone_number" name="phone_number" placeholder="+1234567890" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message">Custom Message (optional)</label>
+                    <textarea id="message" name="message" placeholder="Hi! Could you please share your location with me?">Someone has requested your location.</textarea>
+                </div>
+                
+                <button type="submit" class="btn">Send Location Request</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h1>📋 Recent Requests</h1>
+            <div id="requestsList" class="requests-list">
+                <div class="empty-state">No requests sent yet</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = `alert ${type}`;
+            alertBox.style.display = 'block';
+            
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 5000);
+        }
+        
+        function formatDateTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+        
+        function loadRequests() {
+            fetch('/api/requests')
+                .then(response => response.json())
+                .then(data => {
+                    const requestsList = document.getElementById('requestsList');
+                    const requests = data.requests;
+                    const responses = data.responses;
+                    
+                    if (Object.keys(requests).length === 0) {
+                        requestsList.innerHTML = '<div class="empty-state">No requests sent yet</div>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    for (const [requestId, request] of Object.entries(requests)) {
+                        const hasResponse = responses[requestId];
+                        html += `
+                            <div class="request-item">
+                                <div class="request-header">
+                                    <span class="phone-number">${request.phone_number}</span>
+                                    <span class="status ${request.status}">${request.status}</span>
+                                </div>
+                                <div class="request-time">Sent: ${formatDateTime(request.created_at)}</div>
+                                ${hasResponse ? `
+                                    <div class="request-time">Received: ${formatDateTime(hasResponse.submitted_at)}</div>
+                                    <a href="/view/${requestId}" class="view-link">View Location on Map →</a>
+                                ` : ''}
+                            </div>
+                        `;
+                    }
+                    
+                    requestsList.innerHTML = html;
+                });
+        }
+        
+        document.getElementById('locationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/send-request', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success || data.location_url) {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                    } else {
+                        showAlert(data.message, 'warning');
+                    }
+                    document.getElementById('locationForm').reset();
+                    loadRequests();
+                } else if (data.error) {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                showAlert('An error occurred: ' + error.message, 'error');
+            });
+        });
+        
+        loadRequests();
+        setInterval(loadRequests, 5000);
+    </script>
+</body>
+</html>
