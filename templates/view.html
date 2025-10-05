@@ -153,8 +153,8 @@
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const lat = {{ location.latitude }};
-        const lng = {{ location.longitude }};
+        const lat = parseFloat("{{ location.latitude }}");
+        const lng = parseFloat("{{ location.longitude }}");
         
         const map = L.map('map').setView([lat, lng], 15);
         

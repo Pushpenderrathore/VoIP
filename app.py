@@ -3,16 +3,19 @@ import secrets
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from twilio.rest import Client
+from dotenv import load_dotenv
+
+load_dotenv()  # loads .env
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SESSION_SECRET', 'dev-secret-key')
+app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 location_requests = {}
 location_responses = {}
 
 def get_twilio_client():
-    account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
-    auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     
     if not account_sid or not auth_token:
         return None
@@ -48,40 +51,42 @@ def send_request():
     
     client = get_twilio_client()
     
-    if client:
-        try:
-            twilio_phone = os.environ.get('TWILIO_PHONE_NUMBER')
-            if not twilio_phone:
-                return jsonify({'error': 'TWILIO_PHONE_NUMBER not configured'}), 500
-            
-            full_message = f"{message_text}\n\nShare your location here: {location_url}"
-            
-            message = client.messages.create(
-                body=full_message,
-                from_=twilio_phone,
-                to=phone_number
-            )
-            
-            location_requests[request_id]['status'] = 'sent'
-            location_requests[request_id]['sms_sid'] = message.sid
-            
-            return jsonify({
-                'success': True,
-                'request_id': request_id,
-                'location_url': location_url,
-                'message': 'SMS sent successfully'
-            })
-        except Exception as e:
-            location_requests[request_id]['status'] = 'failed'
-            location_requests[request_id]['error'] = str(e)
-            return jsonify({'error': f'Failed to send SMS: {str(e)}'}), 500
-    else:
+    if not client:
+        location_requests[request_id]['status'] = 'twilio_missing'
         return jsonify({
             'success': False,
             'request_id': request_id,
             'location_url': location_url,
-            'message': 'Twilio not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in Secrets. You can manually send this link: ' + location_url
+            'message': 'Twilio not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in environment. You can manually send this link: ' + location_url
+        }), 200
+    
+    try:
+        twilio_phone = os.environ.get('TWILIO_PHONE_NUMBER')
+        if not twilio_phone:
+            location_requests[request_id]['status'] = 'twilio_missing_phone'
+            return jsonify({'error': 'TWILIO_PHONE_NUMBER not configured'}), 500
+        
+        full_message = f"{message_text}\n\nShare your location here: {location_url}"
+        
+        message = client.messages.create(
+            body=full_message,
+            from_=twilio_phone,
+            to=phone_number
+        )
+        
+        location_requests[request_id]['status'] = 'sent'
+        location_requests[request_id]['sms_sid'] = message.sid
+        
+        return jsonify({
+            'success': True,
+            'request_id': request_id,
+            'location_url': location_url,
+            'message': 'SMS sent successfully'
         })
+    except Exception as e:
+        location_requests[request_id]['status'] = 'failed'
+        location_requests[request_id]['error'] = str(e)
+        return jsonify({'error': f'Failed to send SMS: {str(e)}'}), 500
 
 @app.route('/share/<request_id>')
 def share_location(request_id):
